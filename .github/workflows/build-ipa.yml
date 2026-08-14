@@ -1,0 +1,45 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Select Xcode version
+      run: sudo xcode-select -s /Applications/Xcode_26.6.app
+
+    - name: Build and Archive
+      run: |
+        xcodebuild clean archive \
+          -project "TongDao.xcodeproj" \
+          -scheme "TongDao" \
+          -configuration Release \
+          -archivePath build/TongDao.xcarchive \
+          -destination 'generic/platform=iOS' \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Create unsigned IPA
+      run: |
+        APP_PATH=$(find build/TongDao.xcarchive -name "*.app" -type d | head -1)
+        echo "Found app at: $APP_PATH"
+        mkdir -p build/Payload
+        cp -R "$APP_PATH" build/Payload/
+        cd build && zip -r TongDao.ipa Payload/ && cd ..
+
+    - name: List output files
+      run: ls -la build/
+
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TongDao-ipa
+        path: build/*.ipa
